@@ -116,9 +116,9 @@ prodramo_colnames = ['periodo', 'rut', 'dv', 'grupo', 'codigo_ramo', 'monto']
 # -------------- LECTURA DIRECTA DE ARCHIVOS DEL REPO --------------
 
 try:
-    identifi = pd.read_fwf("identifi.txt", colspecs=identifi_colspecs, names=identifi_colnames, encoding='latin1', dtype=str)
-    intercia = pd.read_fwf("intercia.txt", colspecs=intercia_colspecs, names=intercia_colnames, encoding='latin1', dtype=str)
-    prodramo = pd.read_fwf("prodramo.txt", colspecs=prodramo_colspecs, names=prodramo_colnames, encoding='latin1', dtype=str)
+    identifi = pd.read_fwf("identifi_20250308152405.txt", colspecs=identifi_colspecs, names=identifi_colnames, encoding='latin1', dtype=str)
+    intercia = pd.read_fwf("intercia_20250308152405.txt", colspecs=intercia_colspecs, names=intercia_colnames, encoding='latin1', dtype=str)
+    prodramo = pd.read_fwf("prodramo_20250308152405.txt", colspecs=prodramo_colspecs, names=prodramo_colnames, encoding='latin1', dtype=str)
 except Exception as e:
     st.error(f"Error leyendo archivos desde el repositorio: {e}")
     st.stop()
