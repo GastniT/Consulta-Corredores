@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 
+# Diccionario RAMOS completo. Puedes separarlo en un ramos.py si prefieres y hacer from ramos import RAMOS 
 RAMOS = {
     "99": "TOTAL SEG. GENERALES",
     "1": "Incendio",
@@ -40,7 +41,6 @@ RAMOS = {
     "35": "Agrícola",
     "36": "Asistencia",
     "50": "Otros Seguros Gen.",
-    # Vida
     "999": "TOTAL VIDA",
     "100": "Vida Individual",
     "101": "Vida Entera Individual",
@@ -132,24 +132,36 @@ if idfile and intfile and prodfile:
 
     if consulta:
         mask = identifi['nombre'].str.contains(consulta.upper(), na=False) | identifi['rut'].str.contains(consulta)
-        resultados = identifi[mask]
-        st.write("Corredores encontrados:", resultados)
+        resultados = identifi[mask].reset_index(drop=True)
         if not resultados.empty:
-            ruts = resultados['rut'].tolist()
-            # Tabla por compañía
-            int_filtrada = intercia[intercia['rut'].isin(ruts)]
+            corredor_opciones = resultados['nombre'] + " [" + resultados['rut'] + "-" + resultados['dv'] + "]"
+            elegido_idx = st.selectbox(
+                "Selecciona un corredor:",
+                range(len(corredor_opciones)),
+                format_func=lambda i: corredor_opciones[i],
+            )
+            elegido_rut = resultados.loc[elegido_idx, 'rut']
+            st.write("Ficha:", resultados.loc[[elegido_idx]])
+
+            # Filtrar datos por el seleccionado
+            ruts = [elegido_rut]
+            int_filtrada = intercia[intercia['rut'].isin(ruts)].copy()
             int_filtrada['monto'] = int_filtrada['monto'].astype(float) * 1000
             int_filtrada['monto'] = int_filtrada['monto'].map('${:,.0f}'.format)
             st.write("Producción por Compañía", int_filtrada[['nombre_cia', 'monto']])
 
             # Tabla por ramo
-            prod_ramos = prodramo[prodramo['rut'].isin(ruts)]
+            prod_ramos = prodramo[prodramo['rut'].isin(ruts)].copy()
+            prod_ramos['codigo_ramo'] = prod_ramos['codigo_ramo'].astype(str).str.lstrip('0')
             prod_ramos['monto'] = prod_ramos['monto'].astype(float) * 1000
             prod_agg = prod_ramos.groupby('codigo_ramo')['monto'].sum().reset_index()
             prod_agg['ramo'] = prod_agg['codigo_ramo'].map(RAMOS)
+            prod_agg['ramo'] = prod_agg['ramo'].fillna(prod_agg['codigo_ramo'])
             prod_agg['monto'] = prod_agg['monto'].map('${:,.0f}'.format)
             prod_agg = prod_agg[['ramo', 'monto']]
             st.write("Producción por Ramo", prod_agg)
+        else:
+            st.write("No se encontraron corredores.")
     else:
         st.write("Ingrese nombre o RUT para la búsqueda.")
 
