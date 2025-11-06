@@ -103,23 +103,6 @@ RAMOS = {
     "425": "Seguro Ahorro Previsional APV",
     "426": "Seguro Ahorro Previsional Colectivo APVC"
 }
-def cargar_df(uploaded_file, colspecs, colnames):
-    if uploaded_file is None:
-        return None
-    return pd.read_fwf(uploaded_file, colspecs=colspecs, names=colnames, encoding='latin1', dtype=str)
-
-# --- Menú lateral para carga y gestión de archivos ---
-st.sidebar.title('Bases de Datos')
-if "identifi" not in st.session_state:
-    st.session_state['identifi'] = None
-if "intercia" not in st.session_state:
-    st.session_state['intercia'] = None
-if "prodramo" not in st.session_state:
-    st.session_state['prodramo'] = None
-
-uploaded_id = st.sidebar.file_uploader("Sube identifi.txt", type='txt')
-uploaded_int = st.sidebar.file_uploader("Sube intercia.txt", type='txt')
-uploaded_prod = st.sidebar.file_uploader("Sube prodramo.txt", type='txt')
 
 identifi_colspecs = [(1, 10), (10, 11), (11, 111), (112, 120), (121, 160), (161, 180), (182, 183), (183, 184)]
 identifi_colnames = ['rut', 'dv', 'nombre', 'telefono', 'domicilio', 'ciudad', 'region', 'tipo_persona']
@@ -130,85 +113,63 @@ intercia_colnames = ['periodo', 'rut', 'dv', 'grupo', 'num_secuencia', 'rut_cia'
 prodramo_colspecs = [(1, 7), (8, 17), (17, 18), (19, 20), (22, 25), (26, 36)]
 prodramo_colnames = ['periodo', 'rut', 'dv', 'grupo', 'codigo_ramo', 'monto']
 
-if uploaded_id is not None:
-    st.session_state['identifi'] = cargar_df(uploaded_id, identifi_colspecs, identifi_colnames)
-if uploaded_int is not None:
-    st.session_state['intercia'] = cargar_df(uploaded_int, intercia_colspecs, intercia_colnames)
-if uploaded_prod is not None:
-    st.session_state['prodramo'] = cargar_df(uploaded_prod, prodramo_colspecs, prodramo_colnames)
+# -------------- LECTURA DIRECTA DE ARCHIVOS DEL REPO --------------
 
-if st.sidebar.button("Borrar archivos cargados"):
-    st.session_state['identifi'] = None
-    st.session_state['intercia'] = None
-    st.session_state['prodramo'] = None
-    st.sidebar.success("Archivos eliminados.")
+try:
+    identifi = pd.read_fwf("identifi.txt", colspecs=identifi_colspecs, names=identifi_colnames, encoding='latin1', dtype=str)
+    intercia = pd.read_fwf("intercia.txt", colspecs=intercia_colspecs, names=intercia_colnames, encoding='latin1', dtype=str)
+    prodramo = pd.read_fwf("prodramo.txt", colspecs=prodramo_colspecs, names=prodramo_colnames, encoding='latin1', dtype=str)
+except Exception as e:
+    st.error(f"Error leyendo archivos desde el repositorio: {e}")
+    st.stop()
 
-st.sidebar.write("Archivos cargados:")
-for nombre in ['identifi', 'intercia', 'prodramo']:
-    if st.session_state[nombre] is not None:
-        st.sidebar.write(f"✔️ {nombre}.txt cargado")
+# ------------------------------------------------------------
+
+consulta = st.text_input("Buscar por nombre o RUT:")
+
+if consulta:
+    mask = identifi['nombre'].str.contains(consulta.upper(), na=False) | identifi['rut'].str.contains(consulta)
+    resultados = identifi[mask].reset_index(drop=True)
+    if not resultados.empty:
+        corredor_opciones = resultados['nombre'] + " [" + resultados['rut'] + "-" + resultados['dv'] + "]"
+        elegido_idx = st.selectbox(
+            "Selecciona un corredor:",
+            range(len(corredor_opciones)),
+            format_func=lambda i: corredor_opciones[i],
+        )
+        elegido_rut = resultados.loc[elegido_idx, 'rut']
+        st.write("Ficha:", resultados.loc[[elegido_idx]])
+
+        # --- Producción por Compañía ---
+        df_comp = intercia[intercia['rut'] == elegido_rut].copy()
+        df_comp['monto'] = df_comp['monto'].astype(float) * 1000
+        df_comp['monto'] = df_comp['monto'].map('${:,.0f}'.format)
+
+        # Excluir subtotales extra "TOTAL": dejar solo el mayor si hay más de uno
+        totales = df_comp[df_comp['nombre_cia'].str.upper() == 'TOTAL']
+        if not totales.empty:
+            idx_max = totales['monto'].str.replace(r'[\$,]', '', regex=True).astype(float).idxmax()
+            df_comp = df_comp.drop(totales.index)
+            df_comp.loc[idx_max] = totales.loc[idx_max]
+        st.write("Producción por Compañía", df_comp[['nombre_cia', 'monto']])
+
+        # --- Producción por Ramo ---
+        df_ramo = prodramo[prodramo['rut'] == elegido_rut].copy()
+
+        # Eliminar ceros adelante y signos extras
+        df_ramo['codigo_ramo'] = df_ramo['codigo_ramo'].astype(str).str.lstrip('0').str.strip('+').str.strip()
+        df_ramo['ramo_desc'] = df_ramo['codigo_ramo'].map(RAMOS).fillna('Sin descripción')
+        df_ramo['monto'] = df_ramo['monto'].astype(float) * 1000
+        df_agg_ramo = (
+            df_ramo.groupby('ramo_desc')['monto']
+            .sum()
+            .reset_index()
+            .sort_values('monto', ascending=False)
+        )
+        df_agg_ramo['monto'] = df_agg_ramo['monto'].map('${:,.0f}'.format)
+        st.write("Producción por Ramo", df_agg_ramo[['ramo_desc', 'monto']])
+
     else:
-        st.sidebar.write(f"❌ {nombre}.txt no cargado")
-
-
-# --- Main de búsqueda y consulta ---
-st.title("Consulta Intermediarios: Producción por Ramo y Compañía")
-
-if st.session_state['identifi'] is not None and st.session_state['intercia'] is not None and st.session_state['prodramo'] is not None:
-
-    consulta = st.text_input("Buscar por nombre o RUT:")
-
-    identifi = st.session_state['identifi']
-    intercia = st.session_state['intercia']
-    prodramo = st.session_state['prodramo']
-
-    if consulta:
-        mask = identifi['nombre'].str.contains(consulta.upper(), na=False) | identifi['rut'].str.contains(consulta)
-        resultados = identifi[mask].reset_index(drop=True)
-        if not resultados.empty:
-            corredor_opciones = resultados['nombre'] + " [" + resultados['rut'] + "-" + resultados['dv'] + "]"
-            elegido_idx = st.selectbox(
-                "Selecciona un corredor:",
-                range(len(corredor_opciones)),
-                format_func=lambda i: corredor_opciones[i],
-            )
-            elegido_rut = resultados.loc[elegido_idx, 'rut']
-            st.write("Ficha:", resultados.loc[[elegido_idx]])
-
-            # --- Producción por Compañía ---
-            df_comp = intercia[intercia['rut'] == elegido_rut].copy()
-            df_comp['monto'] = df_comp['monto'].astype(float) * 1000
-            df_comp['monto'] = df_comp['monto'].map('${:,.0f}'.format)
-
-            # Excluir subtotales extra: solo deja el TOTAL mayor si hay más de uno
-            totales = df_comp[df_comp['nombre_cia'].str.upper() == 'TOTAL']
-            if not totales.empty:
-                idx_max = totales['monto'].str.replace(r'[\$,]', '', regex=True).astype(float).idxmax()
-                df_comp = df_comp.drop(totales.index)
-                df_comp.loc[idx_max] = totales.loc[idx_max]
-            st.write("Producción por Compañía", df_comp[['nombre_cia', 'monto']])
-
-            # --- Producción por Ramo ---
-            df_ramo = prodramo[prodramo['rut'] == elegido_rut].copy()
-
-            # Asegurar eliminación de ceros adelante y sin símbolos extra
-            df_ramo['codigo_ramo'] = df_ramo['codigo_ramo'].astype(str).str.lstrip('0').str.strip('+').str.strip()
-            df_ramo['ramo_desc'] = df_ramo['codigo_ramo'].map(RAMOS).fillna('Sin descripción')
-            df_ramo['monto'] = df_ramo['monto'].astype(float) * 1000
-            df_agg_ramo = (
-                df_ramo
-                .groupby('ramo_desc')['monto']
-                .sum()
-                .reset_index()
-                .sort_values('monto', ascending=False)
-            )
-            df_agg_ramo['monto'] = df_agg_ramo['monto'].map('${:,.0f}'.format)
-            st.write("Producción por Ramo", df_agg_ramo[['ramo_desc', 'monto']])
-
-        else:
-            st.write("No se encontraron corredores.")
-    else:
-        st.write("Ingrese nombre o RUT para la búsqueda.")
-
+        st.write("No se encontraron corredores.")
 else:
-    st.info("Carga los tres archivos .txt en el menú lateral para habilitar la consulta.")
+    st.write("Ingrese nombre o RUT para la búsqueda.")
