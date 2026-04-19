@@ -587,6 +587,9 @@ else:
             df_ramo["ramo_desc"] = df_ramo["codigo_ramo"].map(RAMOS).fillna(
                 df_ramo["codigo_ramo"].apply(lambda c: f"Ramo {c}")
             )
+            # Excluir códigos de totales (99 = TOTAL SEG. GENERALES, 999 = TOTAL VIDA)
+            CODIGOS_TOTAL = {"99", "999"}
+            df_ramo = df_ramo[~df_ramo["codigo_ramo"].isin(CODIGOS_TOTAL)]
             df_agg = (
                 df_ramo.groupby("ramo_desc")["monto"]
                 .sum()
