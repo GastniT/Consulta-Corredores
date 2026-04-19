@@ -150,13 +150,16 @@ DATA_DIR = Path(__file__).parent
 
 @st.cache_data(show_spinner="Cargando datos FECU…")
 def load_data():
-    identifi = pd.read_parquet(DATA_DIR / "identifi.parquet")
-    intercia = pd.read_parquet(DATA_DIR / "intercia.parquet")
-    prodramo = pd.read_parquet(DATA_DIR / "prodramo.parquet")
-    # RUT como string sin espacios
+    identifi = pd.read_csv(DATA_DIR / "identifi.csv.gz", compression="gzip")
+    intercia = pd.read_csv(DATA_DIR / "intercia.csv.gz", compression="gzip")
+    prodramo = pd.read_csv(DATA_DIR / "prodramo.csv.gz", compression="gzip")
+    # RUT como string sin espacios, anio también como string
     for df in [identifi, intercia, prodramo]:
         if "rut" in df.columns:
             df["rut"] = df["rut"].astype(str).str.strip()
+    for df in [intercia, prodramo]:
+        if "anio" in df.columns:
+            df["anio"] = df["anio"].astype(str)
     return identifi, intercia, prodramo
 
 identifi, intercia, prodramo = load_data()
