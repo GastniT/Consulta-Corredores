@@ -393,7 +393,7 @@ for col in ["Generales (M$)", "Vida (M$)", "Total (M$)"]:
 # Destacar el año seleccionado
 def highlight_year(row):
     if row["Año"] == año_seleccionado:
-        return ["background-color: #1a3538"] * len(row)
+        return ["background-color: #1a5560; color: #ffffff; font-weight: 600"] * len(row)
     if all(v == "—" for v in [row["Generales (M$)"], row["Vida (M$)"], row["Total (M$)"]]):
         return ["color: #555"] * len(row)
     return [""] * len(row)
