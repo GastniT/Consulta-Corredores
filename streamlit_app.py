@@ -153,13 +153,28 @@ def load_data():
     identifi = pd.read_csv(DATA_DIR / "identifi.csv.gz", compression="gzip")
     intercia = pd.read_csv(DATA_DIR / "intercia.csv.gz", compression="gzip")
     prodramo = pd.read_csv(DATA_DIR / "prodramo.csv.gz", compression="gzip")
-    # RUT como string sin espacios, anio también como string
+    # Normalizar RUTs: int → string sin ceros a la izquierda
     for df in [identifi, intercia, prodramo]:
         if "rut" in df.columns:
-            df["rut"] = df["rut"].astype(str).str.strip()
+            df["rut"] = df["rut"].astype(str).str.strip().str.lstrip("0")
+    # RUT compañía
+    if "rut_cia" in intercia.columns:
+        intercia["rut_cia"] = intercia["rut_cia"].astype(str).str.strip().str.lstrip("0")
+    # anio como string
     for df in [intercia, prodramo]:
         if "anio" in df.columns:
             df["anio"] = df["anio"].astype(str)
+    # codigo_ramo como string (sin ceros a la izquierda, igual que las claves del dict RAMOS)
+    if "codigo_ramo" in prodramo.columns:
+        prodramo["codigo_ramo"] = prodramo["codigo_ramo"].astype(str).str.strip().str.lstrip("0")
+    # grupo como string
+    for df in [intercia, prodramo]:
+        if "grupo" in df.columns:
+            df["grupo"] = df["grupo"].astype(str).str.strip()
+    # dv como string
+    for df in [identifi, intercia, prodramo]:
+        if "dv" in df.columns:
+            df["dv"] = df["dv"].astype(str).str.strip()
     return identifi, intercia, prodramo
 
 identifi, intercia, prodramo = load_data()
@@ -225,7 +240,7 @@ st.markdown("""
 /* Header de la app */
 [data-testid="stAppViewContainer"] { background: #0f1117; }
 .main-header {
-    background: linear-gradient(135deg, #0a7076 0%, #065a5f 100%);
+    background: linear-gradient(135deg, #0d8f96 0%, #076e75 100%);
     padding: 1.2rem 2rem;
     border-radius: 0.75rem;
     margin-bottom: 1.5rem;
@@ -236,30 +251,30 @@ st.markdown("""
 
 /* Cards de KPI */
 .kpi-card {
-    background: #1a1d23;
-    border: 1px solid #2a2d35;
+    background: #1e2128;
+    border: 1px solid #3a4050;
     border-radius: 0.625rem;
     padding: 1rem 1.25rem;
     text-align: center;
 }
-.kpi-label { color: #888; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; }
-.kpi-value { color: #3fb8c2; font-size: 1.35rem; font-weight: 700; font-family: monospace; margin: 4px 0; }
+.kpi-label { color: #aab; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; }
+.kpi-value { color: #4dd6e0; font-size: 1.35rem; font-weight: 700; font-family: monospace; margin: 4px 0; }
 .kpi-delta { font-size: 0.75rem; }
 
 /* Ficha corredor */
 .corredor-card {
     background: #1a1d23;
     border: 1px solid #2a2d35;
-    border-left: 4px solid #3fb8c2;
+    border-left: 4px solid #4dd6e0;
     border-radius: 0.625rem;
     padding: 1rem 1.5rem;
     margin-bottom: 1rem;
 }
-.corredor-nombre { font-size: 1.3rem; font-weight: 700; color: #e0ddd8; margin: 0; }
+.corredor-nombre { font-size: 1.3rem; font-weight: 700; color: #f0ede8; margin: 0; }
 .corredor-rut { font-family: monospace; font-size: 0.9rem; color: #888; }
 .corredor-meta { display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 0.5rem; }
-.corredor-meta span { font-size: 0.82rem; color: #aaa; }
-.corredor-meta strong { color: #ccc; }
+.corredor-meta span { font-size: 0.82rem; color: #bbb; }
+.corredor-meta strong { color: #e8e8e8; }
 
 /* Tablas */
 .stDataFrame { border-radius: 0.5rem; overflow: hidden; }
@@ -396,12 +411,12 @@ if not df_graf.empty:
     fig_evol = go.Figure()
     fig_evol.add_trace(go.Bar(
         x=df_graf["Año"], y=df_graf["Generales (M$)"],
-        name="Generales", marker_color="#3fb8c2",
+        name="Generales", marker_color="#4dd6e0",
         hovertemplate="<b>%{x}</b><br>Generales: $ %{y:,.0f}<extra></extra>",
     ))
     fig_evol.add_trace(go.Bar(
         x=df_graf["Año"], y=df_graf["Vida (M$)"],
-        name="Vida", marker_color="#e8b340",
+        name="Vida", marker_color="#f5c842",
         hovertemplate="<b>%{x}</b><br>Vida: $ %{y:,.0f}<extra></extra>",
     ))
     fig_evol.update_layout(
@@ -413,13 +428,13 @@ if not df_graf.empty:
         legend=dict(orientation="h", yanchor="bottom", y=1, xanchor="right", x=1),
         height=260,
         xaxis=dict(gridcolor="#2a2d35"),
-        yaxis=dict(gridcolor="#2a2d35", tickformat=",.0f"),
+        yaxis=dict(gridcolor="#3a3d45", tickformat=",.0f", color="#ccc"),
     )
     # Línea de total
     fig_evol.add_trace(go.Scatter(
         x=df_graf["Año"], y=df_graf["Total (M$)"],
         name="Total", mode="lines+markers",
-        line=dict(color="#fff", width=1.5, dash="dot"),
+        line=dict(color="#ffffff", width=2, dash="dot"),
         marker=dict(size=4),
         hovertemplate="<b>%{x}</b><br>Total: $ %{y:,.0f}<extra></extra>",
     ))
@@ -588,7 +603,7 @@ else:
                     x=df_bar["monto"],
                     y=df_bar["ramo_desc"],
                     orientation="h",
-                    marker_color="#3fb8c2",
+                    marker_color="#4dd6e0",
                     hovertemplate="<b>%{y}</b><br>$ %{x:,.0f}<extra></extra>",
                 ))
                 fig_bar.update_layout(
