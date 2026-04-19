@@ -297,6 +297,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────
+# QUERY PARAMS: ?rut=76449878  (abre corredor directo desde URL)
+# ──────────────────────────────────────────────────────────────
+params = st.query_params
+rut_param = params.get("rut", "").strip().lstrip("0")
+
+# ──────────────────────────────────────────────────────────────
 # BÚSQUEDA
 # ──────────────────────────────────────────────────────────────
 col_search, col_año = st.columns([3, 1])
@@ -305,6 +311,7 @@ with col_search:
     consulta = st.text_input(
         "🔍 Buscar corredor por nombre o RUT:",
         placeholder="Ej: MARSH   o   025959302",
+        value=rut_param if rut_param else "",
         key="busqueda_principal",
     )
 
@@ -425,7 +432,7 @@ if not df_graf.empty:
         paper_bgcolor="#0f1117",
         font_color="#ccc",
         margin=dict(l=0, r=0, t=10, b=0),
-        legend=dict(orientation="h", yanchor="bottom", y=1, xanchor="right", x=1),
+        legend=dict(orientation="h", yanchor="bottom", y=1, xanchor="right", x=1, font=dict(color="#ffffff", size=11)),
         height=260,
         xaxis=dict(gridcolor="#2a2d35"),
         yaxis=dict(gridcolor="#3a3d45", tickformat=",.0f", color="#ccc"),
@@ -544,21 +551,29 @@ else:
                         values="monto",
                         names="nombre_cia",
                         hole=0.55,
-                        color_discrete_sequence=px.colors.qualitative.Set2,
+                        color_discrete_sequence=['#4dd6e0', '#f5c842', '#e05c5c', '#6ec46e', '#c07de8', '#f0884d', '#5b9cf6', '#f06ab8', '#52d9a4', '#d4a85a'],
                     )
                     fig_pie.update_layout(
                         plot_bgcolor="#0f1117",
                         paper_bgcolor="#0f1117",
-                        font_color="#ccc",
-                        margin=dict(l=0, r=0, t=0, b=0),
-                        height=220,
+                        font_color="#ffffff",
+                        margin=dict(l=0, r=120, t=0, b=0),
+                        height=260,
                         showlegend=True,
-                        legend=dict(font=dict(size=10)),
+                        legend=dict(
+                            font=dict(size=11, color="#ffffff"),
+                            bgcolor="rgba(0,0,0,0)",
+                            orientation="v",
+                            x=1.02, y=0.5,
+                            xanchor="left", yanchor="middle",
+                        ),
                     )
                     fig_pie.update_traces(
                         textposition="inside",
                         textinfo="percent",
+                        textfont=dict(size=12, color="#ffffff"),
                         hovertemplate="<b>%{label}</b><br>$ %{value:,.0f}<br>%{percent}<extra></extra>",
+                        pull=[0.03] * 10,
                     )
                     st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -651,7 +666,7 @@ if not ci_all.empty:
         x="anio", y="monto", color="nombre_cia",
         markers=True,
         labels={"anio": "Año", "monto": "Prima (M$)", "nombre_cia": "Compañía"},
-        color_discrete_sequence=px.colors.qualitative.Set2,
+        color_discrete_sequence=['#4dd6e0', '#f5c842', '#e05c5c', '#6ec46e', '#c07de8', '#f0884d', '#5b9cf6', '#f06ab8', '#52d9a4', '#d4a85a'],
     )
     fig_cia_evol.update_layout(
         plot_bgcolor="#0f1117",
@@ -659,12 +674,14 @@ if not ci_all.empty:
         font_color="#ccc",
         margin=dict(l=0, r=0, t=10, b=0),
         height=300,
-        legend=dict(orientation="h", yanchor="bottom", y=1, xanchor="right", x=1, font=dict(size=10)),
+        legend=dict(orientation="h", yanchor="bottom", y=1, xanchor="right", x=1, font=dict(size=11, color="#ffffff")),
         xaxis=dict(gridcolor="#2a2d35"),
         yaxis=dict(gridcolor="#2a2d35", tickformat=",.0f"),
     )
     fig_cia_evol.update_traces(
-        hovertemplate="<b>%{x}</b> · %{fullData.name}<br>$ %{y:,.0f}<extra></extra>"
+        hovertemplate="<b>%{x}</b> · %{fullData.name}<br>$ %{y:,.0f}<extra></extra>",
+        line=dict(width=2.5),
+        marker=dict(size=6),
     )
     st.plotly_chart(fig_cia_evol, use_container_width=True)
 
