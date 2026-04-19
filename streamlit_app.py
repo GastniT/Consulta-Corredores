@@ -335,9 +335,10 @@ elegido_idx = st.selectbox(
 corredor = resultados.iloc[elegido_idx]
 rut = corredor["rut"]
 dv = corredor["dv"]
-nombre = corredor["nombre"].strip()
-ciudad = corredor["ciudad"].strip()
-region = REGIONES.get(corredor["region"].strip(), corredor["region"].strip())
+nombre = str(corredor["nombre"]).strip() if pd.notna(corredor["nombre"]) else ""
+ciudad = str(corredor["ciudad"]).strip() if pd.notna(corredor["ciudad"]) else ""
+_region_raw = str(corredor["region"]).strip() if pd.notna(corredor["region"]) else ""
+region = REGIONES.get(_region_raw, _region_raw)
 tipo = "Persona Natural" if corredor["tipo_persona"] == "N" else "Persona Jurídica"
 
 # ──────────────────────────────────────────────────────────────
