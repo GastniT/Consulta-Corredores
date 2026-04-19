@@ -165,10 +165,10 @@ identifi, intercia, prodramo = load_data()
 # HELPERS
 # ──────────────────────────────────────────────────────────────
 def uf(v):
-    """Formatea un valor UF con separadores de miles."""
+    """Formatea un monto en miles de pesos (M$)."""
     if pd.isna(v):
         return "—"
-    return f"UF {v:,.0f}".replace(",", ".")
+    return f"$ {v:,.0f}".replace(",", ".")
 
 def delta_pct(new, old):
     if not old or old == 0:
@@ -199,7 +199,7 @@ def get_totales_corredor(rut):
     for anio in AÑOS:
         ci = intercia[(intercia["rut"] == rut) & (intercia["anio"] == anio)]
         if ci.empty:
-            rows.append({"Año": anio, "Generales (UF)": 0, "Vida (UF)": 0, "Total (UF)": 0})
+            rows.append({"Año": anio, "Generales (M$)": 0, "Vida (M$)": 0, "Total (M$)": 0})
             continue
         # Totales: num_sec == '99' para generales, '999' para vida (o cualquier TOTAL)
         # En la FECU: nombre_cia == 'TOTAL' es el subtotal por grupo
@@ -208,9 +208,9 @@ def get_totales_corredor(rut):
         vid = ci[(ci["grupo"] == "2") & (ci["nombre_cia"].str.upper().str.strip() == "TOTAL")]["monto"].sum()
         rows.append({
             "Año": anio,
-            "Generales (UF)": gen,
-            "Vida (UF)": vid,
-            "Total (UF)": gen + vid,
+            "Generales (M$)": gen,
+            "Vida (M$)": vid,
+            "Total (M$)": gen + vid,
         })
     return pd.DataFrame(rows)
 
@@ -273,7 +273,7 @@ st.markdown("""
 <div class="main-header">
   <div>
     <h1>📋 FECU Corredores · Securicom</h1>
-    <p>Análisis competitivo · CMF Chile 2017–2025 · Valores en UF (Diciembre de cada año)</p>
+    <p>Análisis competitivo · CMF Chile 2017–2025 · Valores en M$ (miles de pesos)</p>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -361,21 +361,21 @@ df_evol = get_totales_corredor(rut)
 df_evol_display = df_evol.copy()
 
 # Agregar columna de variación
-totales = df_evol["Total (UF)"].tolist()
+totales = df_evol["Total (M$)"].tolist()
 variaciones = [None] + [
     delta_pct(totales[i], totales[i-1]) for i in range(1, len(totales))
 ]
 df_evol_display["Var. anual"] = [color_delta(v) for v in variaciones]
 
 # Formatear montos
-for col in ["Generales (UF)", "Vida (UF)", "Total (UF)"]:
+for col in ["Generales (M$)", "Vida (M$)", "Total (M$)"]:
     df_evol_display[col] = df_evol[col].apply(lambda v: uf(v) if v != 0 else "—")
 
 # Destacar el año seleccionado
 def highlight_year(row):
     if row["Año"] == año_seleccionado:
         return ["background-color: #1a3538"] * len(row)
-    if all(v == "—" for v in [row["Generales (UF)"], row["Vida (UF)"], row["Total (UF)"]]):
+    if all(v == "—" for v in [row["Generales (M$)"], row["Vida (M$)"], row["Total (M$)"]]):
         return ["color: #555"] * len(row)
     return [""] * len(row)
 
@@ -387,18 +387,18 @@ st.dataframe(
 )
 
 # Gráfico de evolución
-df_graf = df_evol[df_evol["Total (UF)"] > 0].copy()
+df_graf = df_evol[df_evol["Total (M$)"] > 0].copy()
 if not df_graf.empty:
     fig_evol = go.Figure()
     fig_evol.add_trace(go.Bar(
-        x=df_graf["Año"], y=df_graf["Generales (UF)"],
+        x=df_graf["Año"], y=df_graf["Generales (M$)"],
         name="Generales", marker_color="#3fb8c2",
-        hovertemplate="<b>%{x}</b><br>Generales: UF %{y:,.0f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>Generales: $ %{y:,.0f}<extra></extra>",
     ))
     fig_evol.add_trace(go.Bar(
-        x=df_graf["Año"], y=df_graf["Vida (UF)"],
+        x=df_graf["Año"], y=df_graf["Vida (M$)"],
         name="Vida", marker_color="#e8b340",
-        hovertemplate="<b>%{x}</b><br>Vida: UF %{y:,.0f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>Vida: $ %{y:,.0f}<extra></extra>",
     ))
     fig_evol.update_layout(
         barmode="stack",
@@ -413,11 +413,11 @@ if not df_graf.empty:
     )
     # Línea de total
     fig_evol.add_trace(go.Scatter(
-        x=df_graf["Año"], y=df_graf["Total (UF)"],
+        x=df_graf["Año"], y=df_graf["Total (M$)"],
         name="Total", mode="lines+markers",
         line=dict(color="#fff", width=1.5, dash="dot"),
         marker=dict(size=4),
-        hovertemplate="<b>%{x}</b><br>Total: UF %{y:,.0f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>Total: $ %{y:,.0f}<extra></extra>",
     ))
     st.plotly_chart(fig_evol, use_container_width=True)
 
@@ -435,9 +435,9 @@ if ci_año.empty and pr_año.empty:
     st.warning(f"Sin datos FECU para este corredor en {año_seleccionado}.")
 else:
     # KPIs del año
-    total_gen = df_evol[df_evol["Año"] == año_seleccionado]["Generales (UF)"].values
-    total_vid = df_evol[df_evol["Año"] == año_seleccionado]["Vida (UF)"].values
-    total_tot = df_evol[df_evol["Año"] == año_seleccionado]["Total (UF)"].values
+    total_gen = df_evol[df_evol["Año"] == año_seleccionado]["Generales (M$)"].values
+    total_vid = df_evol[df_evol["Año"] == año_seleccionado]["Vida (M$)"].values
+    total_tot = df_evol[df_evol["Año"] == año_seleccionado]["Total (M$)"].values
 
     total_gen = float(total_gen[0]) if len(total_gen) else 0
     total_vid = float(total_vid[0]) if len(total_vid) else 0
@@ -446,7 +446,7 @@ else:
     # Calcular delta respecto al año anterior
     prev_idx = AÑOS.index(año_seleccionado) - 1
     prev_año = AÑOS[prev_idx] if prev_idx >= 0 else None
-    prev_total = df_evol[df_evol["Año"] == prev_año]["Total (UF)"].values if prev_año else []
+    prev_total = df_evol[df_evol["Año"] == prev_año]["Total (M$)"].values if prev_año else []
     prev_total = float(prev_total[0]) if len(prev_total) else None
     var_total = delta_pct(total_tot, prev_total)
 
@@ -498,7 +498,7 @@ else:
             df_cia["RUT Cía."] = df_cia.apply(
                 lambda r: rut_display(r["rut_cia"], r["dv_cia"]), axis=1
             )
-            df_cia["Monto (UF)"] = df_cia["monto"].apply(uf)
+            df_cia["Monto (M$)"] = df_cia["monto"].apply(uf)
             df_cia["Monto_num"] = df_cia["monto"]
 
             # Porcentaje
@@ -508,7 +508,7 @@ else:
             )
 
             st.dataframe(
-                df_cia[["nombre_cia", "RUT Cía.", "Monto (UF)", "Share"]].rename(
+                df_cia[["nombre_cia", "RUT Cía.", "Monto (M$)", "Share"]].rename(
                     columns={"nombre_cia": "Compañía"}
                 ),
                 use_container_width=True,
@@ -539,7 +539,7 @@ else:
                     fig_pie.update_traces(
                         textposition="inside",
                         textinfo="percent",
-                        hovertemplate="<b>%{label}</b><br>UF %{value:,.0f}<br>%{percent}<extra></extra>",
+                        hovertemplate="<b>%{label}</b><br>$ %{value:,.0f}<br>%{percent}<extra></extra>",
                     )
                     st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -560,7 +560,7 @@ else:
                 .sort_values("monto", ascending=False)
             )
             df_agg = df_agg[df_agg["monto"] != 0].copy()
-            df_agg["Monto (UF)"] = df_agg["monto"].apply(uf)
+            df_agg["Monto (M$)"] = df_agg["monto"].apply(uf)
 
             # Porcentaje
             total_r = df_agg["monto"].abs().sum()
@@ -569,7 +569,7 @@ else:
             )
 
             st.dataframe(
-                df_agg[["ramo_desc", "Monto (UF)", "Share"]].rename(
+                df_agg[["ramo_desc", "Monto (M$)", "Share"]].rename(
                     columns={"ramo_desc": "Ramo"}
                 ),
                 use_container_width=True,
@@ -585,7 +585,7 @@ else:
                     y=df_bar["ramo_desc"],
                     orientation="h",
                     marker_color="#3fb8c2",
-                    hovertemplate="<b>%{y}</b><br>UF %{x:,.0f}<extra></extra>",
+                    hovertemplate="<b>%{y}</b><br>$ %{x:,.0f}<extra></extra>",
                 ))
                 fig_bar.update_layout(
                     plot_bgcolor="#0f1117",
@@ -631,7 +631,7 @@ if not ci_all.empty:
         df_cia_evol_top,
         x="anio", y="monto", color="nombre_cia",
         markers=True,
-        labels={"anio": "Año", "monto": "Prima (UF)", "nombre_cia": "Compañía"},
+        labels={"anio": "Año", "monto": "Prima (M$)", "nombre_cia": "Compañía"},
         color_discrete_sequence=px.colors.qualitative.Set2,
     )
     fig_cia_evol.update_layout(
@@ -645,7 +645,7 @@ if not ci_all.empty:
         yaxis=dict(gridcolor="#2a2d35", tickformat=",.0f"),
     )
     fig_cia_evol.update_traces(
-        hovertemplate="<b>%{x}</b> · %{fullData.name}<br>UF %{y:,.0f}<extra></extra>"
+        hovertemplate="<b>%{x}</b> · %{fullData.name}<br>$ %{y:,.0f}<extra></extra>"
     )
     st.plotly_chart(fig_cia_evol, use_container_width=True)
 
@@ -669,7 +669,7 @@ st.markdown('<div class="fecu-divider"></div>', unsafe_allow_html=True)
 st.markdown(
     "<div style='text-align:center;color:#555;font-size:0.78rem;padding-top:0.5rem'>"
     "Fuente: <b>CMF Chile</b> — FECU Corredores de Seguros · Diciembre 2017–2025 · "
-    "Valores en UF · Uso interno Securicom"
+    "Valores en M$ (miles de pesos) · Uso interno Securicom"
     "</div>",
     unsafe_allow_html=True,
 )
